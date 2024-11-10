@@ -1,5 +1,7 @@
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.vectorstores import Chroma
+from langchain.chains import RetrievalQA
+from langchain.llms import OpenAI
 import pandas as pd
 
 data_path = "datasource/amd_amlage_jaenner.csv"
