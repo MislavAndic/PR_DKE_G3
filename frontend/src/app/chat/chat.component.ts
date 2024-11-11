@@ -33,15 +33,21 @@ export class ChatComponent {
 
   getBotResponse(userMessage: string) {
     this.http.post<any>(environment.apiUrl, { prompt: userMessage }, {headers: new HttpHeaders({'Access-Control-Allow-Origin':'*'})})
-      .subscribe(response => {
+      .subscribe({
+        next: (response) => {
           const botReply = response.response || "Bot antwortet gerade nicht";
-          this.messages.push({ sender: 'bot', text: botReply });
+          this.messages.push({sender: 'bot', text: botReply});
         },
-        error => {
+
+        error: (error) => {
           console.error('Fehler beim Abrufen der Bot-Antwort:', error);
           const botReply = "REALLY NOT FEELING UP TO IT RIGHT NOW. SORRY.";
-          this.messages.push({ sender: 'bot', text: botReply });
+          this.messages.push({sender: 'bot', text: botReply});
+        },
+
+        complete: () => {
+          console.log("Request is completed");
         }
-      );
+      });
   }
 }
