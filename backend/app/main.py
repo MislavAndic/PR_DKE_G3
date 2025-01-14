@@ -20,7 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-genai.configure(api_key="AIzaSyACtQYXbqjug4SVrTB0zKgMakWkRk5Qkfo")
+genai.configure(api_key="AIzaSyCY61FyOoKSakjBn2hoemZWJ7I4drWz3iQ")
 llm = genai.GenerativeModel('gemini-1.5-flash')
 model = "models/text-embedding-004"
 chat = llm.start_chat()
@@ -28,10 +28,10 @@ chat = llm.start_chat()
 # embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 # vector_store = InMemoryVectorStore(embeddings)
 
-if os.path.exists("embedded_data_2024.csv"):
-    data = pd.read_csv("embedded_data_2024.csv")
-else:
-    data = pd.DataFrame()
+#if os.path.exists("embedded_data_2024.csv"):
+#    data = pd.read_csv("embedded_data_2024.csv")
+#else:
+data = pd.DataFrame()
 
 
 class ChatRequest(BaseModel):
@@ -72,7 +72,7 @@ def make_prompt(query, passage):
       Achten Sie darauf, dass Sie in einem vollständigen Satz antworten, der alle relevanten Hintergrundinformationen enthält. \
       Sie sprechen jedoch mit einem nicht-technischen Publikum, also stellen Sie sicher, dass Sie komplizierte Konzepte aufschlüsseln und \
       Schlagen Sie einen freundlichen und konversationellen Ton an. \
-      Wenn die Passage für die Antwort irrelevant ist, können Sie sie ignorieren.
+      Wenn die Passage für die Antwort irrelevant ist, können Sie sie ignorieren!
 
       QUESTION: '{query}'
       PASSAGE: '{relevant_passage}'
@@ -93,7 +93,8 @@ async def read_data_from_gv():
 
     # get each name and url from the resources array
     for resource in response.json()['result']['resources']:
-        month = resource['name'].split(" ")[2]
+        if resource['name'] != "":
+            month = resource['name'].split(" ")[2]
         url = resource['url']
 
         # Local file path where the file will be saved
