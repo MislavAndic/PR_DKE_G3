@@ -1,7 +1,10 @@
 import textwrap
+import time
+from tabnanny import check
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 import google.generativeai as genai
 from pydantic import BaseModel
 import requests
@@ -28,10 +31,10 @@ chat = llm.start_chat()
 # embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 # vector_store = InMemoryVectorStore(embeddings)
 
-#if os.path.exists("embedded_data_2024.csv"):
-#    data = pd.read_csv("embedded_data_2024.csv")
-#else:
-data = pd.DataFrame()
+if os.path.exists("embedded_data_2024.csv"):
+    data = pd.read_csv("embedded_data_2024.csv")
+else:
+    data = pd.DataFrame()
 
 
 class ChatRequest(BaseModel):
@@ -46,19 +49,28 @@ async def read_root():
 
 @app.post("/queryLlm")
 async def chat(user_query: ChatRequest):
+    if not contains_month(user_query.prompt):
+        return "Bitte geben Sie Ihre Frage mit Ihrem gewünschten Monat ein!"
+
     query = user_query.prompt
 
     passage = find_best_passage(query, data)
     prompt = make_prompt(query, passage)
 
     response = llm.start_chat().send_message(prompt, stream=True)
-    response_text = ""
-    for chunk in response:
-        if chunk.text:
-            response_text += chunk.text
 
-    return {"response": response_text}
+    def generate():
+        for chunk in response:
+            if chunk.text:
+                print(f"Chunk: {chunk.text}")
+                yield chunk.text
+                time.sleep(0.1)
 
+    return StreamingResponse(generate(), media_type="text/plain")
+
+def contains_month(prompt):
+    months =["Jänner", "Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"]
+    return any(month in prompt for month in months)
 
 def find_best_passage(query, df):
     query_embedding = genai.embed_content(model=model, content=query, task_type="retrieval_query")
@@ -95,7 +107,7 @@ async def read_data_from_gv():
     for resource in response.json()['result']['resources']:
         if resource['name'] != "":
             month = resource['name'].split(" ")[2]
-        url = resource['url']
+            url = resource['url']
 
         # Local file path where the file will be saved
         local_filename = "./datasource/amd_amlage_" + month + ".xlsx"
@@ -118,8 +130,11 @@ async def read_data_from_gv():
     # List all files in the 'datasource' directory
     files = os.listdir("./datasource")
 
+    #Array of rows to append missing information
+    array = [0, 17, 20, 29, 32, 41, 45, 49, 54, 58]
     # Iterate over each file
     for file in files:
+
         # Load the Excel file into a DataFrame
         df = pd.read_excel(f"datasource/{file}", skiprows=4)
         # rename columns
@@ -132,11 +147,25 @@ async def read_data_from_gv():
         # Append the data to the main DataFrame
         data = pd.concat([data, df], ignore_index=True)
 
+        data.loc[array[0]:array[1], 'title'] += ' (Zusammen)'
+        data.loc[array[2]:array[3], 'title'] += ' (Männer)'
+        data.loc[array[4]:array[5], 'title'] += ' (Frauen)'
+        data.loc[array[6]:array[7], 'title'] += ' (Lehrstellensuchende)'
+        data.loc[array[8]:array[9], 'title'] += ' (in Schulung)'
+
+        #update row values for new file
+        for i in range(len(array)):
+            array[i] += 61
+
+    data.dropna(subset=['value'])
     # join first 4 columns into new column text_value with type string
-    data['text_value'] = data['title'].astype(str) + ' für Monat ' + data['month'].astype(str) + ': ' + data[
-        'value'].astype(
-        str) + '. Absolute Änderung im Vergleich zum Vormonat: ' + data['abs'].astype(
-        str) + '. Prozentuelle Änderung im Vergleich zum Vormonat: ' + data['percent'].astype(str)
+    def generate_text(row):
+        if pd.isna(row['percent']) or row['percent'] == '':
+            return f"{row['title']} für Monat {row['month']}: {row['value']}. Änderung im Vergleich zum Vorjahr: {row['abs']}."
+        else:
+            return f"{row['title']} für Monat {row['month']}: {row['value']}. Absolute Änderung im Vergleich zum Vorjahr: {row['abs']}. Prozentuelle Änderung im Vergleich zum Vorjahr: {row['percent']}"
+
+    data['text_value'] = data.apply(generate_text, axis=1)
 
     data['text_value'] = data['text_value'].astype(str)
 
@@ -146,6 +175,7 @@ async def read_data_from_gv():
 
     data['key'] = data['title'].astype(str) + ' ' + data['month'].astype(str)
     data['embeddings'] = data.apply(lambda row: embed_fn(row['key'], row['text_value']), axis=1)
+
 
     # save data to csv
     data.to_csv("embedded_data_2024.csv", index=False)

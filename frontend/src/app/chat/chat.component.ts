@@ -64,29 +64,44 @@ export class ChatComponent implements OnInit {
     }
   }
 
+  sendPretypedMessage(event : Event) {
+    const button = event.target as HTMLButtonElement;
+    const buttonText = button.innerText;
+    this.userInput = buttonText; // Prepopulate the user input for clarity
+    this.sendMessage(); // Use the existing sendMessage method
+  }
+
   getBotResponse(userMessage: string) {
-    this.http.post<any>(environment.apiUrl, { prompt: userMessage }, {headers: new HttpHeaders({'Access-Control-Allow-Origin':'*'})})
-      .subscribe({
-        next: (response) => {
-          const botReply = response.response || "Bot antwortet gerade nicht";
-          const botMessage = { sender: 'bot', text: botReply };
+    const botMessage = { sender: 'bot', text: '' }; // For streaming updates
+    this.messages.push(botMessage);
 
-          this.messages.push(botMessage);
-          this.chatHistoryService.addMessageToCurrentChat(botMessage);
-        },
+    // Use fetch to handle streaming response
+    fetch(`${environment.apiUrl}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: userMessage })
+    })
+      .then(async (response) => {
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let done = false;
 
-        error: (error) => {
-          console.error('Fehler beim Abrufen der Bot-Antwort:', error);
-          const botReply = "REALLY NOT FEELING UP TO IT RIGHT NOW. SORRY.";
-          const botMessage = { sender: 'bot', text: botReply };
-
-          this.messages.push(botMessage);
-          this.chatHistoryService.addMessageToCurrentChat(botMessage);
-        },
-
-        complete: () => {
-          console.log("Request is completed");
+        while (!done) {
+          const { value, done: readerDone } = await reader?.read() || {};
+          done = readerDone || false;
+          if (value) {
+            const chunk = decoder.decode(value, { stream: true });
+            console.log("Received chunk:", chunk);
+            botMessage.text += chunk; // Append streamed text chunk to message
+          }
         }
+      })
+      .catch((error) => {
+        console.error('Error while streaming response:', error);
+        botMessage.text = "REALLY NOT FEELING UP TO IT RIGHT NOW SORRY";
+      })
+      .finally(() => {
+        this.chatHistoryService.addMessageToCurrentChat(botMessage);
       });
   }
 

@@ -1,1 +1,15 @@
 venv/
+.idea/misc.xml
+backend/app/datasource/amd_amlage_April.xlsx
+backend/app/datasource/amd_amlage_August.xlsx
+backend/app/datasource/amd_amlage_Februar.xlsx
+backend/app/datasource/amd_amlage_Juli.xlsx
+backend/app/datasource/amd_amlage_Juni.xlsx
+backend/app/datasource/amd_amlage_Jänner.xlsx
+backend/app/datasource/amd_amlage_Mai.xlsx
+backend/app/datasource/amd_amlage_März.xlsx
+backend/app/datasource/amd_amlage_September.xlsx
+backend/app/datasource/amd_amlage_Oktober.xlsx
+backend/app/datasource/~$amd_amlage_August.xlsx
+backend/app/embedded_data_2024.csv
+backend/app/embedded_data_2024.csv
