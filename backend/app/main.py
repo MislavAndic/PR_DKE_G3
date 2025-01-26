@@ -26,15 +26,15 @@ app.add_middleware(
 genai.configure(api_key="AIzaSyCY61FyOoKSakjBn2hoemZWJ7I4drWz3iQ")
 llm = genai.GenerativeModel('gemini-1.5-flash')
 model = "models/text-embedding-004"
-chat = llm.start_chat()
+chatSession = llm.start_chat()
 
 # embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 # vector_store = InMemoryVectorStore(embeddings)
 
-if os.path.exists("embedded_data_2024.csv"):
-    data = pd.read_csv("embedded_data_2024.csv")
-else:
-    data = pd.DataFrame()
+#if os.path.exists("embedded_data_2024.csv"):
+#    data = pd.read_csv("embedded_data_2024.csv")
+#else:
+data = pd.DataFrame()
 
 
 class ChatRequest(BaseModel):
@@ -49,15 +49,14 @@ async def read_root():
 
 @app.post("/queryLlm")
 async def chat(user_query: ChatRequest):
-    if not contains_month(user_query.prompt):
-        return "Bitte geben Sie Ihre Frage mit Ihrem gewünschten Monat ein!"
 
-    query = user_query.prompt
+    query = chatSession.send_message(refine_query(user_query.prompt), stream= False)
+    print(query.text)
 
-    passage = find_best_passage(query, data)
-    prompt = make_prompt(query, passage)
+    passage = find_best_passage(query.text, data)
+    prompt = make_prompt(query.text, passage)
 
-    response = llm.start_chat().send_message(prompt, stream=True)
+    response = chatSession.send_message(prompt, stream=True)
 
     def generate():
         for chunk in response:
@@ -68,23 +67,24 @@ async def chat(user_query: ChatRequest):
 
     return StreamingResponse(generate(), media_type="text/plain")
 
-def contains_month(prompt):
-    months =["Jänner", "Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"]
-    return any(month in prompt for month in months)
-
 def find_best_passage(query, df):
     query_embedding = genai.embed_content(model=model, content=query, task_type="retrieval_query")
-    dot_products = np.dot(np.stack(df['embeddings']), query_embedding["embedding"])
-    idx = np.argmax(dot_products)
+    cosine_similarities = np.dot(np.stack(df['embeddings']), query_embedding["embedding"]) / (
+            np.linalg.norm(np.stack(df['embeddings']), axis=1) * np.linalg.norm(query_embedding["embedding"])
+    )
+    idx = np.argmax(cosine_similarities)
+
+    print(data.iloc[idx]['text_value'])
     return data.iloc[idx]['text_value']
 
 
 def make_prompt(query, passage):
-    return textwrap.dedent("""Du bist ein hilfsbereiter und informativer Bot, der Fragen anhand des Textes aus der unten stehenden Referenzpassage beantwortet. \
+    return textwrap.dedent("""Du bist ein hilfsbereiter und informativer Bot, der Fragen über die Arbeitsmarktlage in Österreich im Jahr 2024 anhand des Textes aus der unten stehenden Referenzpassage beantwortet. \
       Achten Sie darauf, dass Sie in einem vollständigen Satz antworten, der alle relevanten Hintergrundinformationen enthält. \
       Sie sprechen jedoch mit einem nicht-technischen Publikum, also stellen Sie sicher, dass Sie komplizierte Konzepte aufschlüsseln und \
       Schlagen Sie einen freundlichen und konversationellen Ton an. \
-      Wenn die Passage für die Antwort irrelevant ist, können Sie sie ignorieren!
+      Wenn die Passage für die Beantwortung der Frage irrelevant ist, können Sie diese ignorieren und normal antworten zum Beispiel wenn die Frage "Hallo" ist können Sie einfach zurückgrüßen und Ihre Rolle erklären! \
+      Außerdem sollten sie die Passage nicht in ihrer Antwort erwähnen falls diese zur Beantwortung der Frage irrelevant ist oder nan als Antwort enthält.
 
       QUESTION: '{query}'
       PASSAGE: '{relevant_passage}'
@@ -92,6 +92,15 @@ def make_prompt(query, passage):
         ANSWER:
       """).format(query=query, relevant_passage=passage)
 
+def refine_query(query):
+    return textwrap.dedent("""Du bist ein hilfsbereiter und informativer Bot, der Fragen über die Arbeitsmarktlage in Österreich im Jahr 2024 beantwortet. \
+      Falls die folgende Frage noch keinen Monat oder Thema (wie zum Beispiel Arbeitslosenrate oder Arbeitskraftpotential) enthält vervollständigen Sie die Frage auf der Basis der vorherigen Fragen im Chatverlauf. \
+      Ihre Nachricht sollte nur die vervollständigte Antwort enthalten oder falls die Frage schon beides enthält (Thema und Monat) wiederholen sie die Frage einfach ohne etwas zu ändern. 
+
+      QUESTION: '{query}'
+
+        ANSWER:
+      """).format(query=query)
 
 @app.get("/initial_data_import")
 async def read_data_from_gv():
@@ -157,7 +166,7 @@ async def read_data_from_gv():
         for i in range(len(array)):
             array[i] += 61
 
-    data.dropna(subset=['value'])
+    data.dropna(subset=['value'], inplace=True)
     # join first 4 columns into new column text_value with type string
     def generate_text(row):
         if pd.isna(row['percent']) or row['percent'] == '':
