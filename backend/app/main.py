@@ -26,7 +26,8 @@ app.add_middleware(
 genai.configure(api_key="AIzaSyCY61FyOoKSakjBn2hoemZWJ7I4drWz3iQ")
 llm = genai.GenerativeModel('gemini-1.5-flash')
 model = "models/text-embedding-004"
-chatSession = llm.start_chat()
+currentChatSession = llm.start_chat()
+chatSessions = []
 
 # embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 # vector_store = InMemoryVectorStore(embeddings)
@@ -50,20 +51,20 @@ async def read_root():
 @app.post("/queryLlm")
 async def chat(user_query: ChatRequest):
 
-    query = chatSession.send_message(refine_query(user_query.prompt), stream= False)
+    query = currentChatSession.send_message(refine_query(user_query.prompt), stream= False)
     print(query.text)
 
     passage = find_best_passage(query.text, data)
     prompt = make_prompt(query.text, passage)
 
-    response = chatSession.send_message(prompt, stream=True)
+    response = currentChatSession.send_message(prompt, stream=True)
 
     def generate():
         for chunk in response:
             if chunk.text:
                 print(f"Chunk: {chunk.text}")
                 yield chunk.text
-                time.sleep(0.1)
+                time.sleep(0.2)
 
     return StreamingResponse(generate(), media_type="text/plain")
 
@@ -95,7 +96,8 @@ def make_prompt(query, passage):
 def refine_query(query):
     return textwrap.dedent("""Du bist ein hilfsbereiter und informativer Bot, der Fragen über die Arbeitsmarktlage in Österreich im Jahr 2024 beantwortet. \
       Falls die folgende Frage noch keinen Monat oder Thema (wie zum Beispiel Arbeitslosenrate oder Arbeitskraftpotential) enthält vervollständigen Sie die Frage auf der Basis der vorherigen Fragen im Chatverlauf. \
-      Ihre Nachricht sollte nur die vervollständigte Antwort enthalten oder falls die Frage schon beides enthält (Thema und Monat) wiederholen sie die Frage einfach ohne etwas zu ändern. 
+      Ihre Nachricht sollte nur die vervollständigte Antwort enthalten oder falls die Frage schon beides enthält (Thema und Monat) wiederholen sie die Frage einfach ohne etwas zu ändern.
+      Sollte die Frage nichts mit Fragen über die Arbeitsmarktlage in Österreich wiederholen sie die Frage einfach ohne etwas zu ändern.
 
       QUESTION: '{query}'
 
@@ -190,6 +192,29 @@ async def read_data_from_gv():
     data.to_csv("embedded_data_2024.csv", index=False)
 
     print(data.head())
+
+@app.post("/startNewChatSession")
+async def start_new_chat_session():
+    global chatSessions, currentChatSession
+    new_session = llm.start_chat()
+    chatSessions.append(new_session)
+    currentChatSession = new_session
+
+    return {"message": "New chat session started", "currentChatId": len(chatSessions)}
+
+@app.post("/updateCurrentChatSession")
+async def update_current_chat_session(chat_id: int):
+    global currentChatSession
+    try:
+        # Update the currentChatSession based on chat_id
+        currentChatSession = chatSessions[chat_id - 1]
+        return {"message": "Current chat session updated successfully", "currentChatId": chat_id}
+    except IndexError:
+        # Handle cases where the chat_id is invalid
+        raise HTTPException(status_code=404, detail="Chat session not found")
+    except Exception as e:
+        # Catch any other unexpected errors
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 def embed_fn(key, text_value):

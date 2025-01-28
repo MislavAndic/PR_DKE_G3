@@ -76,7 +76,7 @@ export class ChatComponent implements OnInit {
     this.messages.push(botMessage);
 
     // Use fetch to handle streaming response
-    fetch(`${environment.apiUrl}`, {
+    fetch(`${environment.apiUrl}/queryLlm`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: userMessage })
