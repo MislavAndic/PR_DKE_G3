@@ -6,10 +6,10 @@
   <component name="ChangeListManager">
     <list default="true" id="cb70680c-17f6-4052-8996-2995aaff3859" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/app/embedded_data_2024.csv" beforeDir="false" afterPath="$PROJECT_DIR$/backend/app/embedded_data_2024.csv" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/app/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/app/app.config.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/app/app.config.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/app/chat/chat.component.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/app/chat/chat.component.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/chat.history.service.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/chat.history.service.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/data_convertor.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/dependencies.txt" beforeDir="false" afterPath="$PROJECT_DIR$/backend/dependencies.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -83,6 +83,9 @@
       <workItem from="1737919870697" duration="9439000" />
       <workItem from="1738022851578" duration="1498000" />
       <workItem from="1738024372509" duration="4302000" />
+      <workItem from="1738168325761" duration="2069000" />
+      <workItem from="1738281695062" duration="2618000" />
+      <workItem from="1738351426356" duration="207000" />
     </task>
     <servers />
   </component>

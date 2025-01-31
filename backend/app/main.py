@@ -1,7 +1,5 @@
 import textwrap
 import time
-from tabnanny import check
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -29,12 +27,7 @@ model = "models/text-embedding-004"
 currentChatSession = llm.start_chat()
 chatSessions = []
 
-# embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-# vector_store = InMemoryVectorStore(embeddings)
 
-#if os.path.exists("embedded_data_2024.csv"):
-#    data = pd.read_csv("embedded_data_2024.csv")
-#else:
 data = pd.DataFrame()
 
 
@@ -179,10 +172,6 @@ async def read_data_from_gv():
     data['text_value'] = data.apply(generate_text, axis=1)
 
     data['text_value'] = data['text_value'].astype(str)
-
-    # group data by month and store in new dataframe. concatenate text_value
-
-    # data = data.groupby('month').agg({'text_value': '; '.join}).reset_index()
 
     data['key'] = data['title'].astype(str) + ' ' + data['month'].astype(str)
     data['embeddings'] = data.apply(lambda row: embed_fn(row['key'], row['text_value']), axis=1)
